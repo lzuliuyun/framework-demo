@@ -84,9 +84,9 @@
     })
   }
 
-  function observe(obj, vm) {
-    Object.keys(obj).forEach(function (key) {
-      defineReactive(vm, key, obj[key]);
+  function observe(data, vm) {
+    Object.keys(data).forEach(function (key) {
+      defineReactive(vm, key, data[key]);
     })
   }
 
