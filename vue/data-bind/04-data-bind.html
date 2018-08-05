@@ -1,0 +1,159 @@
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <title>Demo</title>
+</head>
+
+<body>
+  <div id="app">
+    <input type="text" v-model="text"> {{ text }}
+  </div>
+</body>
+
+<script>
+  function nodeToFragment(node, vm) {
+    var docFragment = document.createDocumentFragment();
+    var child;
+
+    while (child = node.firstChild) {
+      compile(child, vm);
+      docFragment.appendChild(child);
+    }
+
+    return docFragment;
+  }
+
+  function compile(node, vm) {
+    //节点类型为元素
+    if (node.nodeType === 1) {
+      var attr = node.attributes;
+
+      for (var i = 0; i < attr.length; i++) {
+        if (attr[i].nodeName === 'v-model') {
+          var name = attr[i].nodeValue;
+
+          node.addEventListener('input', function (e) {
+            vm[name] = e.target.value;
+          })
+
+          // node.value = vm[name];
+          // node.value = vm.data[name];
+          node.removeAttribute('v-model');
+
+          new Watcher(vm, node, name);
+        }
+      }
+
+      // 节点类型为text
+    } else if (node.nodeType === 3) {
+      var reg = /\{\{(.*)\}\}/;
+      if (reg.test(node.nodeValue)) {
+        var name = RegExp.$1;
+        name = name.trim();
+        // node.nodeValue = vm.data[name];
+
+        // node.nodeValue = vm[name];
+
+        new Watcher(vm, node, name);
+      }
+    }
+  }
+
+  function defineReactive(vm, key, val) {
+    var dep = new Dep();
+
+    Object.defineProperty(vm, key, {
+      get: function () {
+        if (Dep.target) {
+          // 添加监听者
+          dep.addSub(Dep.target);
+        }
+        return val;
+      },
+      set: function (newVal) {
+        if (newVal !== val) {
+          val = newVal;
+          // 更新属性时，通知监听者
+          dep.notify();
+          console.log(val);
+        }
+      }
+    })
+  }
+
+  function observe(obj, vm) {
+    Object.keys(obj).forEach(function (key) {
+      defineReactive(vm, key, obj[key]);
+    })
+  }
+
+
+  function Watcher(vm, node, name) {
+    Dep.target = this;
+    this.name = name;
+    this.node = node;
+    this.vm = vm;
+    // 触发 get 更新dom   model ==> view
+    this.update();
+    Dep.target = null;
+  }
+
+  Watcher.prototype = {
+    update: function () {
+      // 触发set
+      this.get();
+
+      // 设置dom value
+      if (this.node.nodeType === 1) {
+        this.node.value = this.value;
+      } else if (this.node.nodeType === 3) {
+        this.node.nodeValue = this.value;
+      }
+    },
+    get: function () {
+      this.value = this.vm[this.name];
+    }
+  }
+
+  function Dep() {
+    this.subs = [];
+  }
+
+  Dep.prototype = {
+    addSub: function (sub) {
+      this.subs.push(sub);
+    },
+    notify: function () {
+      this.subs.forEach(function (sub) {
+        sub.update();
+      })
+    }
+  }
+
+
+  function Vue(options) {
+    this.data = options.data;
+
+    // model ==> view
+    observe(this.data, this);
+
+    var id = options.el;
+
+    // view ==> model
+    var dom = nodeToFragment(document.getElementById(id), this);
+
+    document.getElementById(id).appendChild(dom);
+  }
+
+  var vm = new Vue({
+    el: 'app',
+    data: {
+      text: 'hello world'
+    }
+  })
+</script>
+
+</html>
